@@ -1,0 +1,20 @@
+node_modules/
+dist/
+assets/
+.git/
+.secrets/
+
+
+.env*
+.docker*
+.gcloud*
+*.exe
+
+!.dockerignore
+!.gcloudignore
+
+# Ignore specific files
+pnpm-lock.yaml
+prod*.yaml
+prod*.yml
+playlist.json

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Test</title>
+	{{=it.tailwind_style_tag ?? ''}}
+	{{=it.htmx_script_tag ?? ''}}
+</head>
+
+<body class="flex flex-col items-center pt-20">
+	<header class="w-full min-h-20 max-h-20 px-3
+	flex flex-row justify-center items-center
+	bg-gray-50
+	fixed top-0 left-0
+	shadow-md">
+		<div class="w-full h-full max-w-screen-xxl
+		flex flex-row justify-between items-center">
+			<div class="min-w-24 min-h-10 bg-gray-500">logo</div>
+			<div>
+				<button class="min-w-24 flex flex-col justify-center items-center
+				bg-slate-500 text-gray-100 font-bold text-lg
+				rounded-full" hx-get="/logout">Logout</button>
+			</div>
+		</div>
+	</header>
+	<main class="w-full max-w-screen-xxl
+	flex flex-col 
+	xxs:px-3 md:px-0">
+		{{=it.outlet ?? ''}}
+	</main>
+	<footer class="w-full min-h-48
+	flex flex-col items-center
+	bg-gray-800 text-gray-100">
+		<div class="w-full h-full max-w-screen-xxl">
+			footer links
+		</div>
+	</footer>
+</body>
+{{=it.after_script ?? ''}}
+</html>

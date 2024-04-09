@@ -1,0 +1,30 @@
+ARG NODE_VERSION=node:20
+ARG ALPINE_VERSION=alpine3.18
+FROM ${NODE_VERSION}-${ALPINE_VERSION} as base
+
+WORKDIR /home/node/app
+
+COPY package*.json ./
+RUN npm install -g nodemon ts-node
+RUN npm i
+ENV NODE_ENV=development
+
+RUN apk add --no-cache \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates \
+    ttf-freefont
+
+# Set the path to Chromium executable
+ENV CHROME_BIN=/usr/bin/chromium-browser
+
+# Tell Puppeteer to use the installed Chromium instead of downloading its own
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
+COPY . .
+
+EXPOSE 5050
+
+CMD ["npm", "run", "dev"]

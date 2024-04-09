@@ -1,0 +1,12 @@
+**/node_modules/
+**/.github/
+**/.certificate/
+**/.vscode/
+**/test/
+**/assets/
+**/src/
+.env
+.args**
+.docker**
+tsconfig.json
+pnpm*

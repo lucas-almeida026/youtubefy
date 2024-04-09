@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+	.cont {
+		@apply w-full max-w-screen-xxl;
+		@apply mn:px-3 xxl:px-0;
+	}
+}

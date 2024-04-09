@@ -1,0 +1,31 @@
+{
+	"scripts": {
+		"dev": "nodemon --legacy-watch --watch 'src' --ext 'ts,html,js,css' --exec 'ts-node -T src/main.ts'",
+		"build": "tsc --build",
+		"test": "ts-node -T __tests__/main.spec.ts"
+	},
+	"dependencies": {
+		"cookie-parser": "^1.4.6",
+		"cors": "^2.8.5",
+		"dot": "^1.1.3",
+		"express": "^4.19.2",
+		"express-rate-limit": "^7.2.0",
+		"googleapis": "^134.0.0",
+		"mysql2": "^3.9.3",
+		"puppeteer": "^22.6.1",
+		"uuid": "^9.0.1"
+	},
+	"devDependencies": {
+		"@types/chai": "^4.3.14",
+		"@types/cookie-parser": "^1.4.7",
+		"@types/cors": "^2.8.17",
+		"@types/dot": "^1.1.7",
+		"@types/express": "^4.17.21",
+		"@types/uuid": "^9.0.8",
+		"chai": "4",
+		"dotenv": "^16.4.5",
+		"nodemon": "^3.1.0",
+		"ts-node": "^10.9.2",
+		"typescript": "^5.4.3"
+	}
+}
