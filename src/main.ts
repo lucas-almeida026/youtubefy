@@ -70,13 +70,13 @@ import SessionModel, { SessionCreated } from './models/session'
 
 	const [db, err1] = await preventThrow(createDB)
 	if (err1 !== null) {
-		console.log('Error creating database:', err1)
+		console.error('Error creating database:', err1)
 		process.exit(1)
 	}
 
 	const [, err2] = await preventThrow(() => createDatabaseTables(db))
 	if (err2 !== null) {
-		console.log('Error creating database tables:', err2)
+		console.error('Error creating database tables:', err2)
 		process.exit(1)
 	} else {
 		console.log('Database created successfully')
@@ -85,13 +85,13 @@ import SessionModel, { SessionCreated } from './models/session'
 	const userModel = UserModel(db)
 	const sessionModel = await SessionModel(db)
 	if (sessionModel instanceof Error) {
-		console.log('Error creating session model:', sessionModel)
+		console.error('Error creating session model:', sessionModel)
 		process.exit(1)
 	}
 	const [isSetUp, err3] = await adminModel.isSetUp()
 	if (err3 !== null) {
 		if (err3 instanceof TooManyAdminUsers) {
-			console.log('Fatal Error: Too many admin users')
+			console.error('Fatal Error: Too many admin users')
 			process.exit(1)
 		}
 	}
@@ -100,7 +100,7 @@ import SessionModel, { SessionCreated } from './models/session'
 	} else {
 		const [, err] = await adminModel.useAsAuth(authClient)
 		if (err !== null) {
-			console.log('Error using admin auth:', err)
+			console.error('Error using admin auth:', err)
 			process.exit(1)
 		} else {
 			google._options.auth = authClient
@@ -209,7 +209,7 @@ import SessionModel, { SessionCreated } from './models/session'
 		return res.send(
 			renderer
 				.page('base', 'index')
-				.renderOrDefault({ tailwind_style_tag, htmx_script_tag }, { title: req.get('user-agent') })
+				.renderOrDefault({ tailwind_style_tag, htmx_script_tag }, { title: 'v0.1.1-alpha' })
 		)
 	})
 
@@ -237,17 +237,17 @@ import SessionModel, { SessionCreated } from './models/session'
 		if (decoded !== null) {
 			const [sessionObj, err] = await preventThrow(() => JSON.parse(decoded) as SessionCreated)
 			if (err !== null) {
-				console.log('unable to parse session', err)
+				console.error('unable to parse session', err)
 			}
 			if (sessionObj) {
 				const [verified, err2] = await sessionModel.verify(sessionObj)
 				if (err2 !== null) {
-					console.log('unable to verify session', err2)
+					console.error('unable to verify session', err2)
 				}
 				if (verified) {
 					const [, err] = await sessionModel.delete(sessionObj)
 					if (err !== null) {
-						console.log('unable to delete session', err)
+						console.error('unable to delete session', err)
 						return res.status(500).send('Internal server error; unable to delete session')
 					}
 					res.clearCookie('session')
@@ -291,7 +291,7 @@ import SessionModel, { SessionCreated } from './models/session'
 						'https://www.googleapis.com/auth/youtube',
 						'https://mail.google.com/',
 					],
-					redirect_uri: `${req.protocol}://${req.get('host')}/youtube-oauth2-callback`,
+					redirect_uri: `${env.NODE_ENV === 'production' ? 'https' : 'http'}://${req.get('host')}/youtube-oauth2-callback`,
 				})
 				return res.redirect(AUTH_URL)
 			}

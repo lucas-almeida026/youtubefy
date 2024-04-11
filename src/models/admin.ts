@@ -3,7 +3,7 @@ import valueOrError, { preventThrow } from '../return'
 import { Accessor } from '../cache'
 import { ValueOrError } from '../types'
 import {Auth} from 'googleapis'
-import { extractResponsePayload } from '../db'
+import { DataIsEmpty, extractResponsePayload } from '../db'
 
 
 export default function AdminModel(db: mysql.Pool, cache?: Accessor<unknown>) {
@@ -41,15 +41,19 @@ export default function AdminModel(db: mysql.Pool, cache?: Accessor<unknown>) {
 				return valueOrError<boolean>(fromCache)
 			}
 			const [total, err] = await countAdminUsers()
-			if (err !== null) {
+			if (err !== null && !(err instanceof DataIsEmpty)) {
 				maybeSetCache(KEY, false)
 				return valueOrError<boolean>(err)
+			}
+			if (err !== null && err instanceof DataIsEmpty) {
+				maybeSetCache(KEY, false)
+				return valueOrError<boolean>(false)
 			}
 			if (total === 0) {
 				maybeSetCache(KEY, false)
 				return valueOrError<boolean>(false)
 			}
-			if (total > 1) {
+			if ((total as number) > 1) {
 				return valueOrError<boolean>(new TooManyAdminUsers())
 			}
 			maybeSetCache(KEY, true)

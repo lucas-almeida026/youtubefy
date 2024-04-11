@@ -6,6 +6,7 @@ export const maybeServerIsNotReady = (
 	notReadyContents: string
 ) => async (_: Request, res: Response, next: NextFunction) => {
 	const [isReady, err] = await predicate()
+	console.log({isReady, err})
 	if (err !== null) {
 		return res.status(500).send('Internal server error')
 	}

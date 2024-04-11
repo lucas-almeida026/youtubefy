@@ -14,7 +14,6 @@ export default function YoutubeOauth2CallbackGET(cookieCrypt: SymmetricCrypto, a
 			if (!user_id || typeof user_id !== 'string') return res.status(401).send("You don't have the necessary permissions to access this resource")
 			if (!code) res.status(400).send('Expecting code but found nothing')
 			const [ADMIN_USER_ID, err0] = serverState.get('ADMIN_USER_ID')
-			console.log(ADMIN_USER_ID)
 			if (err0 !== null) {
 				return res.status(500).send('Internal server error; unable to get ADMIN_USER_ID')
 			}
@@ -23,12 +22,14 @@ export default function YoutubeOauth2CallbackGET(cookieCrypt: SymmetricCrypto, a
 			}
 			const [cookieData, err] = await cookieCrypt.decrypt(user_id)
 			if (err !== null) {
+				console.error('unable to decrypt session ID', err)
 				return res.status(500).send('Internal server error; unable to decrypt session ID')
 			}
 			if (!cookieData) return res.status(401).send("You don't have the necessary permissions to access this resource")
 			if (cookieData !== ADMIN_USER_ID || '') return res.status(401).send("You don't have the necessary permissions to access this resource")
 			const [tokensRes, err3] = await preventThrow(authClient.getToken(code as string))
 			if (err3 !== null) {
+				console.error('Error getting tokens', err3)
 				return res.status(500).send('Error getting tokens')
 			}
 			const { tokens } = tokensRes
@@ -48,6 +49,7 @@ export default function YoutubeOauth2CallbackGET(cookieCrypt: SymmetricCrypto, a
 					email: emailAddr,
 					token: tokens.refresh_token
 				}))
+				console.log('AdminModel.save:', emailAddr)
 				if (err2 !== null) {
 					return res.status(500).send('Error starting admin session')
 				}
