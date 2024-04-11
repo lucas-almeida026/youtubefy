@@ -99,7 +99,7 @@ export default async function SessionModel(db: mysql.Pool) {
 			if (err2 !== null) {
 				return valueOrError<boolean>(err2)
 			}
-			const [payload, err3] = await extractResponsePayload(res, (x): x is Session => x instanceof Object && 'uuid' in x && 'user_uuid' in x)
+			const [payload, err3] = await extractResponsePayload(res, (x): x is Session => typeof x === 'object' && 'uuid' in x && 'user_uuid' in x)
 			if (err3 !== null) {
 				return valueOrError<boolean>(err3)
 			}

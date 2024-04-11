@@ -18,7 +18,7 @@ export default function UserModel(db: mysql.Pool) {
 			const [res] = await preventThrow(
 				db.query('select uuid from users where email = ?', [email])
 			)
-			const [payload, err1] = await extractResponsePayload(res, (x): x is User => x instanceof Object && 'uuid' in x)
+			const [payload, err1] = await extractResponsePayload(res, (x): x is User => typeof x === 'object' && 'uuid' in x)
 			if (err1 !== null) {
 				if (err1 instanceof DataIsEmpty) {
 					return valueOrError<User>(new UserDoNotExist())

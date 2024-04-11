@@ -15,7 +15,7 @@ export default function AdminModel(db: mysql.Pool, cache?: Accessor<unknown>) {
 			return valueOrError<number>(err ?? new Error('Error querying database'))
 		}
 		type Total = {total: number}
-		const isTotal = (x: any): x is Total => x instanceof Object && 'total' in x
+		const isTotal = (x: any): x is Total => typeof x === 'object' && 'total' in x
 		const [payload, err2] = await extractResponsePayload(res, isTotal)
 		if (err2 !== null) {
 			return valueOrError<number>(err2)
@@ -73,7 +73,7 @@ export default function AdminModel(db: mysql.Pool, cache?: Accessor<unknown>) {
 			const [res, err] = await preventThrow(db.query('select * from admin'))
 			if (err !== null) return valueOrError<boolean>(err)
 			type AdminRow = {id: number,email: string, refresh_token: string}
-			const isAdminRow = (x: any): x is AdminRow => x instanceof Object && 'email' in x && 'refresh_token' in x
+			const isAdminRow = (x: any): x is AdminRow => typeof x === 'object' && 'email' in x && 'refresh_token' in x
 			const [payload, err2] = await extractResponsePayload(res, isAdminRow)
 			if (err2 !== null) return valueOrError<Auth.OAuth2Client>(err2)
 			client.setCredentials({refresh_token: payload.refresh_token})

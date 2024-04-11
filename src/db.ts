@@ -47,7 +47,7 @@ export async function extractResponsePayload<T>(response: [mysql.QueryResult, my
 		return valueOrError<T>(new DataIsEmpty())
 	}
 	const [payload] = data
-	if (!(payload instanceof Object)) {
+	if (typeof payload !== 'object') {
 		return valueOrError<T>(new InvalidPayloadType('expecting and object'))
 	}
 	if (!verifier(payload)) {
