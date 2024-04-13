@@ -22,7 +22,7 @@ import { ValueOrError } from './types'
 import { maybeServerIsNotReady } from './middlewares'
 import CookieCrypt from './cookie'
 import Routes from './routes'
-import Env from './env'
+import Env, { EnvObject } from './env'
 import { rateLimit } from 'express-rate-limit'
 import serverState from './state'
 import UserModel from './models/user'
@@ -291,7 +291,7 @@ import SessionModel, { SessionCreated } from './models/session'
 						'https://www.googleapis.com/auth/youtube',
 						'https://mail.google.com/',
 					],
-					redirect_uri: `${env.NODE_ENV === 'production' ? 'https' : 'http'}://${req.get('host')}/youtube-oauth2-callback`,
+					redirect_uri: atRoute('youtube-oauth2-callback', String(req.get('host'))),
 				})
 				return res.redirect(AUTH_URL)
 			}
@@ -511,3 +511,7 @@ function scrollAll(page: Page) {
 }
 
 //'https://open.spotify.com/playlist/37i9dQZF1DZ06evO0VDZny'
+export function atRoute(route: string, host: string): string {
+	const env = Env()[0] as EnvObject
+	return `${env.NODE_ENV === 'production' ? 'https' : 'http'}://${host}/${route}`
+}

@@ -10,6 +10,7 @@ import crypto from 'node:crypto'
 import { minutes } from '../timing'
 import UserModel, { UserDoNotExist } from '../models/user'
 import { SessionCreated, SessionModelOk } from '../models/session'
+import { atRoute } from '../main'
 
 
 const after_script = `
@@ -196,7 +197,7 @@ export function LoginPOST(gmailClient: gmail_v1.Gmail, renderer: TemplateRendere
 				renderer
 					.layout('magic-link')
 					.renderOrDefault({
-						link: 'http://localhost:5050/login?code=' + encodeURIComponent(code),
+						link: atRoute('login?code=' + encodeURIComponent(code), String(req.get('host'))),
 					})
 			]
 			const encodedEmail = Buffer.from(emailLines.join('\n'))
