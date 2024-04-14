@@ -46,7 +46,6 @@ const env = {
 export type EnvObject = {
 	[key in keyof typeof env]: string
 }
-console.log(env)
 
 export default function Env() {
 	if (!CLIENT_ID) return valueOrError<EnvObject>(new MissingEnvVar('CLIENT_ID'))

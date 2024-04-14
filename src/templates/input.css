@@ -7,4 +7,19 @@
 		@apply w-full max-w-screen-xxl;
 		@apply mn:px-3 xxl:px-0;
 	}
+
+	.pg-fill {
+		@apply bg-gradient-to-r from-emerald-700 via-green-400 to-emerald-700;
+		background-size: 200% 100%;
+		animation: pg-flow 3s linear infinite;
+	}
+}
+
+@keyframes pg-flow {
+	0% {
+		background-position: 200% 0;
+	}
+	100% {
+		background-position: -200% 0;
+	}
 }

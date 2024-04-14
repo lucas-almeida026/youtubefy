@@ -29,6 +29,11 @@ import UserModel from './models/user'
 import SessionModel, { SessionCreated } from './models/session'
 
 
+export type Sender = {
+	log: (msg: string) => void,
+	prog: (percent: number) => void
+}
+
 (async () => {
 
 	const [env, err0] = Env()
@@ -129,8 +134,8 @@ import SessionModel, { SessionCreated } from './models/session'
 		{}
 	)
 
-	const browser = await pup.launch({
-		headless: process.env['HEADLESS'] === '1',
+	let browser = await pup.launch({
+		headless: process.env?.['HEADLESS'] === '1',
 		args: ['--no-sandbox', '--window-size=1440,900', '--start-minimized'],
 		ignoreDefaultArgs: ['--disable-extensions'],
 		executablePath: '/usr/bin/chromium-browser'
@@ -190,7 +195,7 @@ import SessionModel, { SessionCreated } from './models/session'
 	} else {
 		app.use(cors())
 	}
-	
+
 	app.use(Routes({
 		cookieCrypt,
 		authClient,
@@ -213,16 +218,141 @@ import SessionModel, { SessionCreated } from './models/session'
 		)
 	})
 
-	app.get('/app', (req, res) => {
+	app.get('/app', maybeServerIsNotReady(adminModel.isSetUp, serverNotReadyPage), (req, res) => {
 		const { session } = req.cookies
 		if (!session) {
 			return res.redirect('/login')
 		}
+		const after_script = `<script>
+let running = false;
+let history = [];
+const btn = document.querySelector('button#youtubefy')
+const input = document.querySelector('input')
+const output = document.querySelector('div#output')
+const pRunning = document.querySelector('p#running')
+const result = document.querySelector('a#result')
+const logDiv = document.querySelector('div#logs')
+const progFill = document.querySelector('div#progress')
+
+if (btn && input && output && result && pRunning && logDiv && progFill) {
+	result.disabled = true
+	pRunning.style.display = 'none'
+	progFill.style.display = 'none'
+	
+	btn.addEventListener('click', async () => {
+		if (!running) {
+			if (input.value === '') {
+				return alert('Please enter a playlist URL or ID')
+			}
+			if (!(/^(?:[a-zA-Z0-9]{22}|https:\\/\\/open.spotify.com\\/playlist\\/[a-zA-Z0-9]{22})$/.test(input.value))) {
+				return alert('Please enter a valid playlist URL or ID')
+			}
+			toggleRunning()
+			fetch('/run', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ playlist: input.value })
+			})
+			.then(response => {
+				let buffer = '';
+				const decoder = new TextDecoder();
+				const reader = response.body?.getReader()
+				if (!reader) throw new Error('No reader')
+				return new ReadableStream({
+					start(controller) {
+						function push() {
+							reader.read().then(({ done, value }) => {
+								if (done) {
+									if (buffer) controller.enqueue(buffer)
+									controller.close()
+									return
+								}
+								const chunk = decoder.decode(value, { stream: true })
+								buffer += chunk
+								if ((buffer.match(/\\n/g) || []).length >= 2) {
+									controller.enqueue(buffer)
+									const lines = buffer.split('\\n')
+									for (const l of lines.slice(0, -1)) {
+										const i = l.indexOf(':')
+										const k = l.slice(0, i)
+										const v = l.slice(i + 1)
+										if (k === 'log') {
+											onLog(v)
+										} else if (k === 'prog') {
+											onProg(v)
+										} else if (k === 'end') {
+											onResult(v)
+										} else {
+											console.warn('Unknown key: ' + k)
+										}
+									}
+									buffer = ''
+								}
+								push()
+							})
+						}
+						push()
+					}
+				})
+			})
+		}
+	})
+}
+function toggleRunning() {
+	if (running) {
+		running = false
+
+		btn.innerHTML = 'Youtubefy'
+		btn.disabled = false
+
+		input.disabled = false
+
+		pRunning.style.display = 'none'
+	} else {
+		running = true
+
+		btn.innerHTML = 'Running...'
+		btn.disabled = true
+
+		input.disabled = true
+
+		setTimeout(() => {
+			pRunning.style.display = 'block'
+		}, 1000)
+	}
+}
+function onLog(msg) {
+	console.log({msg})
+	pushLog(msg)
+}
+function onProg(percentage) {
+	progFill.style.display = 'block'
+	progFill.style.width = String(percentage) + '%'
+	console.log({ percentage })
+}
+function onResult(data) {
+	progFill.style.width = '100%'
+	toggleRunning()
+	console.log(data)
+	result.href = data
+	result.innerHTML = \`Youtubefied Playlist of \${data}\`
+	progFill.style.display = 'none'
+}
+function pushLog(text) {
+	const pEl = document.createElement('p')
+	pEl.innerHTML = text
+	pEl.classList.add('text-gray-500', 'text-sm', 'leading-none')
+	logDiv.appendChild(pEl)
+	logDiv.scrollTop = logDiv.scrollHeight
+}
+		</script>`
 		return res.send(
 			renderer
 				.page('authenticated', 'app')
 				.renderOrDefault(
-					{ tailwind_style_tag, htmx_script_tag },
+					{ tailwind_style_tag, htmx_script_tag, after_script },
 					{}
 				)
 		)
@@ -324,6 +454,16 @@ import SessionModel, { SessionCreated } from './models/session'
 		res.send('killed')
 	})
 
+	app.get('/restart', validateSessionCookie, async (req, res) => {
+		browser = await pup.launch({
+			headless: process.env?.['HEADLESS'] === '1',
+			args: ['--no-sandbox', '--window-size=1440,900', '--start-minimized'],
+			ignoreDefaultArgs: ['--disable-extensions'],
+			executablePath: '/usr/bin/chromium-browser'
+		})
+		res.send('restarted')
+	})
+
 	app.get('/inspect', validateSessionCookie, (req, res) => {
 		//spawn linux terminal with command ps aux | grep -E '[c]hrome|[c]hromium'
 		childProcess.exec('ps aux | grep -E \'[c]hrome|[c]hromium\'', (err, stdout, stderr) => {
@@ -334,31 +474,57 @@ import SessionModel, { SessionCreated } from './models/session'
 		})
 	})
 
-	app.get('/run', maybeServerIsNotReady(adminModel.isSetUp, serverNotReadyPage), validateSessionCookie, async (req, res) => {
+	app.post('/run', async (req, res) => {
+		const { playlist } = req.body
+		if (!playlist) return res.status(400).send('Expecting playlist but found nothing')
+		if (typeof playlist !== 'string') return res.status(400).send('Expecting playlist to be a string')
+		let pId
+		if (playlist.startsWith('https://open.spotify.com/playlist/')) {
+			pId = playlist.split('https://open.spotify.com/playlist/')[1]
+		} else {
+			pId = playlist
+		}
+		if (!(/^[a-zA-Z0-9]{22}$/.test(pId))) return res.status(400).send('Expecting playlist to be a valid playlist URL or ID')
 		if (!browser) return res.status(500).send('Browser not initialized')
 		if (!google._options.auth) return res.status(500).send('Google auth not initialized')
 		let title, pairs
-		if (playlist_json) {
-			console.log('Reading from playlist.json...')
-			const obj = JSON.parse(playlist_json)
-			title = obj.title
-			pairs = obj.pairs.slice(0, 3) //FIXME: remove cap later
-		} else {
-			console.log('Reading from spotify...')
-			const scrape = await scrapePlaylistPage('https://open.spotify.com/playlist/37i9dQZF1DZ06evO0VDZny')
-			title = scrape.title
-			pairs = scrape.pairs.slice(0, 3) //FIXME: remove cap later
-			await fs.writeFile('./playlist.json', JSON.stringify({ title, pairs }, null, 2))
+		res.setHeader('Content-Type', 'text/plain')
+		res.setHeader('Transfer-Encoding', 'chunked')
+
+		let sender_done = false
+		const sender = {
+			log: (msg: string) => {
+				if (sender_done) return
+				console.log(msg)
+				res.write('log:'+msg+'\n')
+			},
+			prog: (n: number) => {
+				if (sender_done) return
+				res.write('prog:'+n+'\n')
+			},
+			end: (data: string, status = 200) => {
+				sender_done = true
+				res.statusCode = status
+				res.write('end:'+data+'\n')
+				res.end()
+			}
 		}
+		sender.prog(1)
+		sender.log('Scraping spotify playlist...')
+		const scrape = await scrapePlaylistPage('https://open.spotify.com/playlist/' + pId, sender)
+		title = scrape.title
+		pairs = scrape.pairs
 		if (spotifyInterval) {
 			clearInterval(spotifyInterval)
 		}
-		console.log('Successfully scraped playlist\n')
-		console.log('Getting youtube playlists...')
+		sender.log('Successfully scraped playlist')
+		sender.log('Getting youtube playlists...')
 		const playlistsRes = await ytClient.playlists.list({ part: ['snippet', 'contentDetails', 'id', 'status'], mine: true, maxResults: 40 })
 		if (playlistsRes?.data?.items) {
+			sender.prog(33)
 			try {
-				const videoIds = await getVideoIds(browser, pairs)
+				const videoIds = await getVideoIds(browser, pairs, sender)
+				sender.prog(50)
 				let playlistExists = false
 				let playlist: youtube_v3.Schema$Playlist
 				for (const item of playlistsRes.data.items) {
@@ -370,7 +536,7 @@ import SessionModel, { SessionCreated } from './models/session'
 				}
 				let playlistURL = ''
 				if (playlistExists) {
-					console.log('Playlist already exists')
+					sender.log('Playlist already exists')
 					//check for titles
 					//@ts-ignore
 					playlistURL = `https://www.youtube.com/playlist?list=${playlist.id}`
@@ -380,22 +546,23 @@ import SessionModel, { SessionCreated } from './models/session'
 						playlistId: playlist.id as string,
 						maxResults: 50,
 					})
-					console.log('Checking for duplicates...')
+					sender.prog(80)
+					sender.log('Checking for duplicates...')
 					for (let i = 0; i < (plItems.items?.length ?? 0); i++) {
 						//@ts-ignore
 						const item = plItems.items[i]
 						const vid = videoIds[i]
 						if (!!vid && !!item && (vid !== item.snippet?.resourceId?.videoId)) {
-							console.log('Inserting video: ' + vid)
+							sender.log('Inserting video: ' + vid)
 							//@ts-ignore
 							await insertVideoOnPlaylist(ytClient, playlist.id, vid)
 						} else {
-							console.log('Video is already included: ' + vid)
+							sender.log('Video is already included: ' + vid)
 						}
 					}
-					return res.send('Finished: ' + playlistURL)
+					return sender.end(playlistURL)
 				} else {
-					console.log('Playlist does not exist, creating...')
+					sender.log('Playlist does not exist, creating...')
 					//create
 					const plCreated = await ytClient.playlists.insert({
 						part: ['snippet', 'contentDetails', 'id', 'status'],
@@ -412,28 +579,138 @@ import SessionModel, { SessionCreated } from './models/session'
 						}
 					})
 					const plId = plCreated.data.id
-					console.log('Playlist created successfully, id: ' + plId)
+					sender.log('Playlist created successfully, id: ' + plId)
 					//populate - required: snippet.playlistId, snippet.resourceId
+					sender.prog(90)
 					if (plId) {
 						playlistURL = `https://www.youtube.com/playlist?list=${plId}`
 						for (const vid of videoIds) {
-							console.log('Inserting video: ' + vid)
+							sender.log('Inserting video: ' + vid)
 							await insertVideoOnPlaylist(ytClient, plId, vid)
 						}
 					} else {
-						return res.send('Error: Playlist was not created')
+						sender.log('Error: Playlist was not created')
+						return sender.end('')
 					}
 				}
-				return res.send('Finished: ' + playlistURL)
+				return res.end(playlistURL)
 			} catch (err) {
-				console.log(err)
-				res.send(err)
+				sender.log(typeof err === 'object' ? JSON.stringify(err) : 'error happened')
+				sender.end('')
 			}
 		} else {
-			return res.status(404).send('Error: Unable to list users playlists')
+			sender.log('Error: Unable to list users playlists')
+			return sender.end('')
 		}
-		res.end('Finishe')
+		sender.end('')
+
+		// title = scrape.title
+		// pairs = scrape.pairs.slice(0, 3)
+		// setTimeout(() => {
+		// 	res.send({scrape})
+		// }, 2000)
 	})
+
+	// app.get('/run', maybeServerIsNotReady(adminModel.isSetUp, serverNotReadyPage), validateSessionCookie, async (req, res) => {
+	// 	if (!browser) return res.status(500).send('Browser not initialized')
+	// 	if (!google._options.auth) return res.status(500).send('Google auth not initialized')
+	// 	let title, pairs
+	// 	if (playlist_json) {
+	// 		console.log('Reading from playlist.json...')
+	// 		const obj = JSON.parse(playlist_json)
+	// 		title = obj.title
+	// 		pairs = obj.pairs.slice(0, 3) //FIXME: remove cap later
+	// 	} else {
+	// 		console.log('Reading from spotify...')
+	// 		const scrape = await scrapePlaylistPage('https://open.spotify.com/playlist/37i9dQZF1DZ06evO0VDZny', {log: () => {}, prog: () => {}})
+	// 		title = scrape.title
+	// 		pairs = scrape.pairs.slice(0, 3) //FIXME: remove cap later
+	// 		await fs.writeFile('./playlist.json', JSON.stringify({ title, pairs }, null, 2))
+	// 	}
+	// 	if (spotifyInterval) {
+	// 		clearInterval(spotifyInterval)
+	// 	}
+	// 	console.log('Successfully scraped playlist\n')
+	// 	console.log('Getting youtube playlists...')
+	// 	const playlistsRes = await ytClient.playlists.list({ part: ['snippet', 'contentDetails', 'id', 'status'], mine: true, maxResults: 40 })
+	// 	if (playlistsRes?.data?.items) {
+	// 		try {
+	// 			const videoIds = await getVideoIds(browser, pairs)
+	// 			let playlistExists = false
+	// 			let playlist: youtube_v3.Schema$Playlist
+	// 			for (const item of playlistsRes.data.items) {
+	// 				if (item.snippet?.title === title) {
+	// 					playlistExists = true
+	// 					playlist = item
+	// 					break
+	// 				}
+	// 			}
+	// 			let playlistURL = ''
+	// 			if (playlistExists) {
+	// 				console.log('Playlist already exists')
+	// 				//check for titles
+	// 				//@ts-ignore
+	// 				playlistURL = `https://www.youtube.com/playlist?list=${playlist.id}`
+	// 				const { data: plItems } = await ytClient.playlistItems.list({
+	// 					part: ['snippet'],
+	// 					//@ts-ignore
+	// 					playlistId: playlist.id as string,
+	// 					maxResults: 50,
+	// 				})
+	// 				console.log('Checking for duplicates...')
+	// 				for (let i = 0; i < (plItems.items?.length ?? 0); i++) {
+	// 					//@ts-ignore
+	// 					const item = plItems.items[i]
+	// 					const vid = videoIds[i]
+	// 					if (!!vid && !!item && (vid !== item.snippet?.resourceId?.videoId)) {
+	// 						console.log('Inserting video: ' + vid)
+	// 						//@ts-ignore
+	// 						await insertVideoOnPlaylist(ytClient, playlist.id, vid)
+	// 					} else {
+	// 						console.log('Video is already included: ' + vid)
+	// 					}
+	// 				}
+	// 				return res.send('Finished: ' + playlistURL)
+	// 			} else {
+	// 				console.log('Playlist does not exist, creating...')
+	// 				//create
+	// 				const plCreated = await ytClient.playlists.insert({
+	// 					part: ['snippet', 'contentDetails', 'id', 'status'],
+	// 					requestBody: {
+	// 						kind: 'youtube#playlist',
+	// 						snippet: {
+	// 							description: 'Youtubefy is an automated tool that transports your favorite playlists from Spotify over to YouTube.',
+	// 							title,
+	// 							tags: ['youtubefy', 'music', 'playlist'],
+	// 						},
+	// 						status: {
+	// 							privacyStatus: 'public',
+	// 						}
+	// 					}
+	// 				})
+	// 				const plId = plCreated.data.id
+	// 				console.log('Playlist created successfully, id: ' + plId)
+	// 				//populate - required: snippet.playlistId, snippet.resourceId
+	// 				if (plId) {
+	// 					playlistURL = `https://www.youtube.com/playlist?list=${plId}`
+	// 					for (const vid of videoIds) {
+	// 						console.log('Inserting video: ' + vid)
+	// 						await insertVideoOnPlaylist(ytClient, plId, vid)
+	// 					}
+	// 				} else {
+	// 					return res.send('Error: Playlist was not created')
+	// 				}
+	// 			}
+	// 			return res.send('Finished: ' + playlistURL)
+	// 		} catch (err) {
+	// 			console.log(err)
+	// 			res.send(err)
+	// 		}
+	// 	} else {
+	// 		return res.status(404).send('Error: Unable to list users playlists')
+	// 	}
+	// 	res.end('Finishe')
+	// })
 
 	app.listen(env.PORT, () => console.log('server running on port ' + env.PORT))
 
@@ -446,36 +723,40 @@ import SessionModel, { SessionCreated } from './models/session'
 		await browser.close()
 	})
 
-	async function scrapePlaylistPage(url: string): Promise<{ title: string, pairs: string[][] }> {
+
+
+	async function scrapePlaylistPage(url: string, sender: Sender): Promise<{ title: string, pairs: string[][] }> {
 		await page.goto(url)
+		sender.log('Page loaded, waiting for data to load...')
 		await wait(seconds(4))
-		console.log('Waiting for playlist to load...')
+		sender.prog(8)
 		const grid = await page.$('div[role="grid"]')
 		if (!grid) {
-			console.log('Error: Grid not found')
+			sender.log('Error: Grid not found')
 			throw Error('Grid not found')
 		}
+		await scrollAll(page)
 		const namesList = await grid.$$('div[data-encore-id="text"]')
 		if (!namesList) {
-			console.log('Error: Names list not found')
+			sender.log('Error: Names list not found')
 			throw Error('Names list not found')
 		}
 		await wait(seconds(4))
-		await scrollAll(page)
-		console.log('Playlist loaded, parsing names...')
+		sender.prog(16)
+		sender.log('Playlist loaded, parsing names...')
 		const playlistNameEl = await page.$('h1[data-encore-id="text"]')
 		if (!playlistNameEl) {
-			console.log('Error: Playlist name not found')
+			sender.log('Error: Playlist name not found')
 			throw Error('Playlist name not found')
 		}
 		const playlistName = 'Youtubefy - ' + (await playlistNameEl.evaluate(node => node.innerText))
-		console.log(`Playlist name: ${playlistName}`)
+		sender.log(`Playlist name: ${playlistName}`)
 		const nameListStr: string[] = []
 		for (const name of namesList) {
 			const contents = await name.evaluate(node => node.innerText)
 			nameListStr.push(contents)
 		}
-		console.log('Names aquired, creating pairs...')
+		sender.log('Names aquired, creating pairs...')
 		const pairs: string[][] = []
 		for (let i = 0; i < nameListStr.length; i += 3) {
 			let temp: string[] = []
@@ -486,6 +767,7 @@ import SessionModel, { SessionCreated } from './models/session'
 			}
 			pairs.push(temp)
 		}
+		sender.prog(25)
 		return {
 			title: playlistName,
 			pairs

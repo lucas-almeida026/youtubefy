@@ -1,3 +1,30 @@
-<div style="min-height: 2000px !important">
-	app
+<div style="min-height: 90vh !important">
+	<div class="w-full py-20 mn:px-0 md:px-12
+	flex flex-row justify-center items-center
+	bg-green-600">
+		<div class="w-full max-w-xl
+		flex flex-row justify-between items-center space-x-3">
+			<input
+				class="w-4/5 max-w-lg
+				p-2 rounded-full shadow-sm
+				bg-gray-50 border-2 border-gray-200 outline-none"
+				type="text"
+				placeholder="Spotify playlist URL or ID">
+			<button id="youtubefy" class="min-w-24
+			py-2 border-2 border-gray-200 outline-none
+			bg-gray-200 text-gray-800 font-bold
+			rounded-full shadow-sm
+			disabled:bg-gray-300 disabled:text-gray-500">Youtubefy</button>
+		</div>
+	</div>
+	<div id="output">
+		<p id="running" class="text-center">This operation can take some time, please be patient</p>
+		<div class="w-full my-4 rounded-full bg-gray-200 transis">
+			<div id="progress" class="w-0 h-3 rounded-full pg-fill
+			transition-all ease-in-out duration-500"></div>
+		</div>
+		<div id="logs" class="max-h-24 overflow-y-auto">
+		</div>
+		<a href="" id="result" target="_blank" class="font-bold underline text-blue-900 text-lg mt-5"></a>
+	</div>
 </div>
