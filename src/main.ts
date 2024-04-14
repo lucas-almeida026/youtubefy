@@ -214,7 +214,7 @@ export type Sender = {
 		return res.send(
 			renderer
 				.page('base', 'index')
-				.renderOrDefault({ tailwind_style_tag, htmx_script_tag }, { title: 'v0.1.1-alpha' })
+				.renderOrDefault({ tailwind_style_tag, htmx_script_tag }, { title: 'v0.1.2-alpha' })
 		)
 	})
 
@@ -514,10 +514,11 @@ function pushLog(text) {
 		const scrape = await scrapePlaylistPage('https://open.spotify.com/playlist/' + pId, sender)
 		title = scrape.title
 		pairs = scrape.pairs
+		console.log(pairs)
 		if (spotifyInterval) {
 			clearInterval(spotifyInterval)
 		}
-		sender.log('Successfully scraped playlist')
+		sender.log('Successfully scraped playlist: total = ' + pairs.length)
 		sender.log('Getting youtube playlists...')
 		const playlistsRes = await ytClient.playlists.list({ part: ['snippet', 'contentDetails', 'id', 'status'], mine: true, maxResults: 40 })
 		if (playlistsRes?.data?.items) {
@@ -525,6 +526,7 @@ function pushLog(text) {
 			try {
 				const videoIds = await getVideoIds(browser, pairs, sender)
 				sender.prog(50)
+				console.log(videoIds)
 				let playlistExists = false
 				let playlist: youtube_v3.Schema$Playlist
 				for (const item of playlistsRes.data.items) {
