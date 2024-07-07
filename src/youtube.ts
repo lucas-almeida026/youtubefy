@@ -4,15 +4,15 @@ import { youtube_v3 } from 'googleapis'
 import { GaxiosPromise } from 'googleapis/build/src/apis/abusiveexperiencereport'
 import { Sender } from './main'
 
-export async function getVideoIds(browser: Browser, pairs: string[][], sender: Sender) {
+export async function getVideoIds(browser: Browser, pairs: {song: string, artist: string}[], sender: Sender) {
 	const page = await browser.newPage()
 	const videoIds: string[] = []
-	for (const [title, author] of pairs) {
+	for (const {song, artist} of pairs) {
 		let videoId = ''
-		const searchQuery = [...author.split(' '), ...title.split(' '), 'lyrics'].map(e => encodeURIComponent(e)).join('+')
+		const searchQuery = [...artist.split(' '), ...song.split(' '), 'lyrics'].map(e => encodeURIComponent(e)).join('+')
 		await page.goto(`https://www.youtube.com/results?search_query=${searchQuery}`)
 		await wait(seconds(2))
-		sender.log(`Searching for ${title} - ${author} video`)
+		sender.log(`Searching for ${song} - ${artist} video`)
 		const titleEls = (await page.$$('a.yt-simple-endpoint.style-scope.ytd-video-renderer')).slice(0, 3)
 		const hrefs = await Promise.all(titleEls.map(e => e.evaluate(node => node.getAttribute('href'))))
 		for (const h of hrefs) {

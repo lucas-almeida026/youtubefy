@@ -487,7 +487,7 @@ function pushLog(text) {
 		if (!(/^[a-zA-Z0-9]{22}$/.test(pId))) return res.status(400).send('Expecting playlist to be a valid playlist URL or ID')
 		if (!browser) return res.status(500).send('Browser not initialized')
 		if (!google._options.auth) return res.status(500).send('Google auth not initialized')
-		let title, pairs
+		let title, data
 		res.setHeader('Content-Type', 'text/plain')
 		res.setHeader('Transfer-Encoding', 'chunked')
 
@@ -503,28 +503,30 @@ function pushLog(text) {
 				res.write('prog:'+n+'\n')
 			},
 			end: (data: string, status = 200) => {
-				sender_done = true
-				res.statusCode = status
-				res.write('end:'+data+'\n')
-				res.end()
+				if (!sender_done) {
+					sender_done = true
+					res.statusCode = status
+					res.write('end:'+data+'\n')
+					res.end()
+				}
 			}
 		}
 		sender.prog(1)
 		sender.log('Scraping spotify playlist...')
 		const scrape = await scrapePlaylistPage('https://open.spotify.com/playlist/' + pId, sender)
 		title = scrape.title
-		pairs = scrape.pairs
-		console.log(pairs)
+		data = scrape.data
+		console.log(data)
 		if (spotifyInterval) {
 			clearInterval(spotifyInterval)
 		}
-		sender.log('Successfully scraped playlist: total = ' + pairs.length)
+		sender.log('Successfully scraped playlist: total = ' + data.length)
 		sender.log('Getting youtube playlists...')
 		const playlistsRes = await ytClient.playlists.list({ part: ['snippet', 'contentDetails', 'id', 'status'], mine: true, maxResults: 40 })
 		if (playlistsRes?.data?.items) {
 			sender.prog(33)
 			try {
-				const videoIds = await getVideoIds(browser, pairs, sender)
+				const videoIds = await getVideoIds(browser, data, sender)
 				sender.prog(50)
 				console.log(videoIds)
 				let playlistExists = false
@@ -595,7 +597,7 @@ function pushLog(text) {
 						return sender.end('')
 					}
 				}
-				return res.end(playlistURL)
+				return sender.end(playlistURL)
 			} catch (err) {
 				sender.log(typeof err === 'object' ? JSON.stringify(err) : 'error happened')
 				sender.end('')
@@ -727,7 +729,7 @@ function pushLog(text) {
 
 
 
-	async function scrapePlaylistPage(url: string, sender: Sender): Promise<{ title: string, pairs: string[][] }> {
+	async function scrapePlaylistPage(url: string, sender: Sender): Promise<{ title: string, data: { song: string, artist: string }[] }> {
 		await page.goto(url)
 		sender.log('Page loaded, waiting for data to load...')
 		await wait(seconds(4))
@@ -738,10 +740,18 @@ function pushLog(text) {
 			throw Error('Grid not found')
 		}
 		await scrollAll(page)
-		const namesList = await grid.$$('div[data-encore-id="text"]')
-		if (!namesList) {
-			sender.log('Error: Names list not found')
-			throw Error('Names list not found')
+		const data: { song: string, artist: string }[] = []
+		for (let i = 0; i < 10; i++) {
+			let namesList = await grid.$$('div[data-encore-id="text"]')
+			for (let i = 0; i < namesList.length; i += 3) {
+				const song = await namesList[i].evaluate(node => node.innerText)
+				const artist = await namesList[i + 1].evaluate(node => node.innerText)
+				if (!data.some(x => x?.song === song && x?.artist === artist)) {
+					data.push({ song, artist })
+				}
+			}
+			await namesList.at(-1)?.evaluate(node => node.scrollIntoView())
+			await wait(500)
 		}
 		await wait(seconds(4))
 		sender.prog(16)
@@ -753,26 +763,10 @@ function pushLog(text) {
 		}
 		const playlistName = 'Youtubefy - ' + (await playlistNameEl.evaluate(node => node.innerText))
 		sender.log(`Playlist name: ${playlistName}`)
-		const nameListStr: string[] = []
-		for (const name of namesList) {
-			const contents = await name.evaluate(node => node.innerText)
-			nameListStr.push(contents)
-		}
-		sender.log('Names aquired, creating pairs...')
-		const pairs: string[][] = []
-		for (let i = 0; i < nameListStr.length; i += 3) {
-			let temp: string[] = []
-			for (let j = 0; j < 3; j++) {
-				if (j < 2) {
-					temp.push(nameListStr[i + j])
-				}
-			}
-			pairs.push(temp)
-		}
 		sender.prog(25)
 		return {
 			title: playlistName,
-			pairs
+			data
 		}
 	}
 })()
