@@ -2,7 +2,8 @@
 	"scripts": {
 		"dev": "nodemon --legacy-watch --watch 'src' --ext 'ts,html,js,css' --exec 'ts-node -T src/main.ts'",
 		"build": "tsc --build",
-		"test": "ts-node -T __tests__/main.spec.ts"
+		"test": "ts-node -T __tests__/main.spec.ts",
+		"dev2": "nodemon --watch ./**/*.ts --exec ts-node -T test-oauth2.ts"
 	},
 	"dependencies": {
 		"cookie-parser": "^1.4.6",
