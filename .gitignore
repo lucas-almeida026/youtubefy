@@ -9,6 +9,7 @@ assets/
 .docker*
 .gcloud*
 *.exe
+_b
 
 !.dockerignore
 !.gcloudignore
