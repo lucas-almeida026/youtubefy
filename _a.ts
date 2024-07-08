@@ -1,11 +1,64 @@
 import { google, youtube_v3 } from 'googleapis'
-import Env from './src/env'
 import express from 'express'
 import path from 'node:path'
 import fs from 'node:fs/promises'
 import { Command, program } from 'commander'
 import { seconds, wait } from './src/timing'
 import pup, { Browser, Page } from 'puppeteer'
+import dotenv from 'dotenv'
+
+export type ValueOrError<T> = [T, null] | [null, Error]
+export function parseMultilineRSAKey(key: string) {
+	if (key.length === 0 || !(key.includes(';'))) return null
+	const lines = key.split(';')
+	return lines.join('\n')
+}
+
+export default function valueOrError<T>(x: T | Error, _default?: T): ValueOrError<T> {
+	const res = Array(2).fill(null)
+	if (x instanceof Error) {
+		res[1] = x
+		if (_default !== undefined) {
+			res[0] = _default
+		}
+	} else {
+		res[0] = x
+	} 
+	return res as ValueOrError<T>
+}
+
+export async function preventThrow<T>(asyncValue: (() => T | Promise<T>) | Promise<T>, _default?: T): Promise<ValueOrError<T>> {
+	try {
+		const res = await (asyncValue instanceof Promise ? asyncValue : asyncValue())
+		return valueOrError(res)
+	} catch(err) {
+		return valueOrError(err, _default) as ValueOrError<T>
+	}
+}
+
+
+dotenv.config();
+
+const CLIENT_ID = process.env['CLIENT_ID']
+const CLIENT_SECRET = process.env['CLIENT_SECRET']
+class MissingEnvVar extends Error {
+	constructor(public readonly varName: string) {super()}
+}
+
+const env = {
+	CLIENT_ID,
+	CLIENT_SECRET,
+}
+
+export type EnvObject = {
+	[key in keyof typeof env]: string
+}
+
+function Env() {
+	if (!CLIENT_ID) return valueOrError<EnvObject>(new MissingEnvVar('CLIENT_ID'))
+	if (!CLIENT_SECRET) return valueOrError<EnvObject>(new MissingEnvVar('CLIENT_SECRET'))
+	return valueOrError<EnvObject>(env as EnvObject)
+}
 
 if (!process.env.APPDATA || typeof process.env.APPDATA !== 'string') {
 	console.error('APPDATA is not set')
