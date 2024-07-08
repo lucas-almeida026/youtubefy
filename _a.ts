@@ -373,12 +373,20 @@ async function scrapePlaylistPage(page: Page, url: string) {
 	// sender.prog(25)
 	console.log(customMarshal({
 		title: playlistName,
-		data
+		data: removeDuplicates(data)
 	}))
 	// return {
 	// 	title: playlistName,
 	// 	data
 	// }
+}
+
+function removeDuplicates(arr: {song: string, artist: string}[]) {
+	return arr.filter((value, index, self) =>
+		index === self.findIndex((t) => (
+			t.song === value.song && t.artist === value.artist
+		))
+	)
 }
 
 function scrollAll(page: Page) {
@@ -403,7 +411,7 @@ async function getVideoIds(browser: Browser, data: {
 	data: {song: string, artist: string}[]
 }, parallel = 8) {
 	// const page = await browser.newPage()
-	const pages = await Promise.all(
+	let pages = await Promise.all(
 		Array(parallel).fill(0).map(() => browser.newPage())
 	)
 	const videoIds: {song: string, artist: string, id: string}[] = []
@@ -417,7 +425,7 @@ async function getVideoIds(browser: Browser, data: {
 				return
 			}
 			const { song, artist } = chunks[i]
-			const search = [...artist.split(' '), ...song.split(' '), 'lyrics'].map(e => encodeURIComponent(e)).join('+')
+			const search = [...artist.replace('-', '').split(' '), ...song.replace('-', '').split(' '), 'lyrics'].map(e => encodeURIComponent(e)).join('+')
 			const url = `https://www.youtube.com/results?search_query=${search}`
 			console.error(`Searching for ${song} - ${artist} video`)
 			await page.goto(url)
@@ -442,11 +450,15 @@ async function getVideoIds(browser: Browser, data: {
 				id: videoId
 			}
 		}))
-		finalArr.push(...res.filter(x => !!x && !!x?.id))
+		await Promise.all(pages.map(p => p.close()))
+		pages = await Promise.all(
+			Array(parallel).fill(0).map(() => browser.newPage())
+		)
+		finalArr.push(res.filter(x => !!x && !!x?.id))
 	}
 	console.log(customMarshal({
 		title: data.title,
-		data: finalArr
+		data: finalArr.flat(4)
 	}))
 }
 
