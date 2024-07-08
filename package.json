@@ -6,6 +6,7 @@
 		"dev2": "nodemon --watch ./**/*.ts --exec ts-node -T test-oauth2.ts"
 	},
 	"dependencies": {
+		"commander": "^12.1.0",
 		"cookie-parser": "^1.4.6",
 		"cors": "^2.8.5",
 		"dot": "^1.1.3",

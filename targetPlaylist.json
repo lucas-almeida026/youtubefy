@@ -1,0 +1,39 @@
+{
+  "kind": "youtube#playlist",
+  "etag": "BsKtmNr8g4oWRLiFcyfDB69paQE",
+  "id": "PLuToLKQcbwxC0hg2N-epnnN2c8xJ7Lykp",
+  "snippet": {
+    "publishedAt": "2024-07-08T01:39:27Z",
+    "channelId": "UCgJkEDOrDE7w3rPjNOiCZew",
+    "title": "Youtubefy - Drum and Bass Top 100",
+    "description": "Youtubefy is an automated tool that transports your favorite playlists from Spotify over to YouTube.",
+    "thumbnails": {
+      "default": {
+        "url": "https://i.ytimg.com/img/no_thumbnail.jpg",
+        "width": 120,
+        "height": 90
+      },
+      "medium": {
+        "url": "https://i.ytimg.com/img/no_thumbnail.jpg",
+        "width": 320,
+        "height": 180
+      },
+      "high": {
+        "url": "https://i.ytimg.com/img/no_thumbnail.jpg",
+        "width": 480,
+        "height": 360
+      }
+    },
+    "channelTitle": "Lucas A",
+    "localized": {
+      "title": "Youtubefy - Drum and Bass Top 100",
+      "description": "Youtubefy is an automated tool that transports your favorite playlists from Spotify over to YouTube."
+    }
+  },
+  "status": {
+    "privacyStatus": "public"
+  },
+  "contentDetails": {
+    "itemCount": 0
+  }
+}
